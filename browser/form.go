@@ -322,6 +322,15 @@ func (f *Form) Dom() *goquery.Selection {
 	return f.selection
 }
 
+// Returns form values
+func (f *Form) Values() url.Values {
+	values := make(url.Values, len(f.fields)+1)
+	for name, vals := range f.fields {
+		values[name] = vals
+	}
+	return values
+}
+
 // send submits the form.
 func (f *Form) send(buttonName, buttonValue string) error {
 	method, ok := f.selection.Attr("method")
@@ -338,10 +347,7 @@ func (f *Form) send(buttonName, buttonValue string) error {
 	}
 	aurl = f.bow.ResolveUrl(aurl)
 
-	values := make(url.Values, len(f.fields)+1)
-	for name, vals := range f.fields {
-		values[name] = vals
-	}
+	values := f.Values()
 	if buttonName != "" {
 		values.Set(buttonName, buttonValue)
 	}
@@ -369,24 +375,31 @@ func serializeForm(sel *goquery.Selection) (url.Values, url.Values, url.Values, 
 		if v, ok := s.Attr("disabled"); ok && strings.ToLower(v) == "disabled" {
 			return
 		}
-		if name, ok := s.Attr("name"); ok {
-			val, _ := s.Attr("value")
-			t, _ := s.Attr("type")
-			t = strings.ToLower(t)
-			if t == "submit" {
-				buttons.Add(name, val)
-			} else if t == "checkbox" || t == "radio" {
-				if c, found := s.Attr("checked"); found && strings.ToLower(c) == "checked" {
-					fields.Add(name, val)
-				}
-				if t == "checkbox" {
-					checkboxs.Add(name, val)
-				}
-			} else if t == "file" {
-				files[name] = &File{}
+		name, ok := s.Attr("name")
+		if !ok {
+			if id, idOK := s.Attr("id"); idOK {
+				name = id
 			} else {
+				return
+			}
+		}
+
+		val, _ := s.Attr("value")
+		t, _ := s.Attr("type")
+		t = strings.ToLower(t)
+		if t == "submit" {
+			buttons.Add(name, val)
+		} else if t == "checkbox" || t == "radio" {
+			if c, found := s.Attr("checked"); found && strings.ToLower(c) == "checked" {
 				fields.Add(name, val)
 			}
+			if t == "checkbox" {
+				checkboxs.Add(name, val)
+			}
+		} else if t == "file" {
+			files[name] = &File{}
+		} else {
+			fields.Add(name, val)
 		}
 	})
 
